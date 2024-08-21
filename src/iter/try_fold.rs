@@ -107,6 +107,10 @@ where
     fn full(&self) -> bool {
         self.base.full()
     }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
+    }
 }
 
 impl<'r, U, T, C, ID, F> UnindexedConsumer<T> for TryFoldConsumer<'r, U, C, ID, F>
@@ -274,6 +278,10 @@ where
 
     fn full(&self) -> bool {
         self.base.full()
+    }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
     }
 }
 

@@ -95,6 +95,10 @@ where
     fn full(&self) -> bool {
         !self.taking.load(Ordering::Relaxed) || self.base.full()
     }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
+    }
 }
 
 impl<'p, T, C, P> UnindexedConsumer<T> for TakeAnyWhileConsumer<'p, C, P>

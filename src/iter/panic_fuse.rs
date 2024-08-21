@@ -269,6 +269,10 @@ where
     fn full(&self) -> bool {
         self.fuse.panicked() || self.base.full()
     }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
+    }
 }
 
 impl<'a, T, C> UnindexedConsumer<T> for PanicFuseConsumer<'a, C>

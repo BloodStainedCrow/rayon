@@ -333,6 +333,10 @@ where
         // don't stop until everyone is full
         self.left.full() && self.right.full()
     }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        Ord::min(self.left.max_default_splitting(), self.right.max_default_splitting())
+    }
 }
 
 impl<'a, T, OP, CA, CB> UnindexedConsumer<T> for UnzipConsumer<'a, OP, CA, CB>

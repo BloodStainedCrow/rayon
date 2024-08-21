@@ -273,6 +273,10 @@ where
     fn full(&self) -> bool {
         self.base.full()
     }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
+    }
 }
 
 impl<'f, T, U, R, C, F> UnindexedConsumer<T> for MapWithConsumer<'f, C, U, F>
@@ -557,6 +561,10 @@ where
 
     fn full(&self) -> bool {
         self.base.full()
+    }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
     }
 }
 

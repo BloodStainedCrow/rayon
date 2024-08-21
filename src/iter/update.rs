@@ -202,6 +202,10 @@ where
     fn full(&self) -> bool {
         self.base.full()
     }
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        self.base.max_default_splitting()
+    }
 }
 
 impl<'f, T, C, F> UnindexedConsumer<T> for UpdateConsumer<'f, C, F>
