@@ -145,6 +145,10 @@ pub trait Consumer<Item>: Send + Sized {
     /// Hint whether this `Consumer` would like to stop processing
     /// further items, e.g. if a search has been completed.
     fn full(&self) -> bool;
+
+    fn max_default_splitting(&self) -> Option<usize> {
+        None
+    }
 }
 
 /// The `Folder` trait encapsulates [the standard fold
@@ -262,6 +266,13 @@ impl Splitter {
     fn new() -> Splitter {
         Splitter {
             splits: crate::current_num_threads(),
+        }
+    }
+
+    #[inline]
+    fn new_with_value(splits: usize) -> Splitter {
+        Splitter {
+            splits,
         }
     }
 
@@ -445,7 +456,11 @@ where
     P: UnindexedProducer,
     C: UnindexedConsumer<P::Item>,
 {
-    let splitter = Splitter::new();
+    let splitter =  if let Some(max_splits) = consumer.max_default_splitting() {
+        Splitter::new_with_value(max_splits)
+    } else {
+        Splitter::new()
+    };
     bridge_unindexed_producer_consumer(false, splitter, producer, consumer)
 }
 

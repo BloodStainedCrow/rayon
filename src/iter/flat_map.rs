@@ -1,7 +1,10 @@
 use super::plumbing::*;
 use super::*;
 
-use std::fmt::{self, Debug};
+use std::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+};
 
 /// `FlatMap` maps each element to a parallel iterator, then flattens these iterators together.
 /// This struct is created by the [`flat_map()`] method on [`ParallelIterator`]
@@ -91,7 +94,7 @@ where
         } else {
             self.base.split_at(index)
         };
-        
+
         (
             FlatMapConsumer::new(left, self.map_op),
             FlatMapConsumer::new(right, self.map_op),
@@ -154,13 +157,59 @@ where
             (self.base.split_off_left(), self.base, reducer)
         };
 
+        struct NoSplitConsumer<I: Send, C: UnindexedConsumer<I>> {
+            base: C,
+            marker: PhantomData<I>,
+        }
+
+        impl<I: Send, C> Consumer<I> for NoSplitConsumer<I, C> where C: UnindexedConsumer<I> {
+            type Folder = C::Folder;
+        
+            type Reducer = C::Reducer;
+        
+            type Result = C::Result;
+        
+            fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+                let (l, r, reducer) = self.base.split_at(index);
+
+                (
+                    Self { base: l, marker: PhantomData },
+                    Self { base: r, marker: PhantomData },
+                    reducer
+                )
+            }
+        
+            fn into_folder(self) -> Self::Folder {
+                self.base.into_folder()
+            }
+        
+            fn full(&self) -> bool {
+                self.base.full()
+            }
+
+            fn max_default_splitting(&self) -> Option<usize> {
+                Ord::min(Some(0), self.base.max_default_splitting())
+            }
+        }
+
+        impl<I: Send, C> UnindexedConsumer<I> for NoSplitConsumer<I, C>
+        where
+            C: UnindexedConsumer<I>,
+        {
+            fn split_off_left(&self) -> Self {
+                Self { base: self.base.split_off_left(), marker: PhantomData }
+            }
+
+            fn to_reducer(&self) -> Self::Reducer {
+                self.base.to_reducer()
+            }
+        }
+
         let result = par_iter.drive_unindexed(consumer);
 
         let previous = match self.previous {
             None => Some(result),
-            Some(previous) => {
-                Some(reducer.reduce(previous, result))
-            }
+            Some(previous) => Some(reducer.reduce(previous, result)),
         };
 
         FlatMapFolder {
