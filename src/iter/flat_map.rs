@@ -192,7 +192,7 @@ where
             }
 
             fn max_default_splitting(&self) -> Option<usize> {
-                Ord::min(Some(0), self.base.max_default_splitting())
+                Some(0)
             }
         }
 
@@ -209,7 +209,7 @@ where
             }
         }
 
-        let result = par_iter.drive_unindexed(consumer);
+        let result = par_iter.drive_unindexed(NoSplitConsumer { base: consumer, marker: PhantomData});
 
         let previous = match self.previous {
             None => Some(result),

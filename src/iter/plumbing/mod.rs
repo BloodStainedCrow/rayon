@@ -146,6 +146,8 @@ pub trait Consumer<Item>: Send + Sized {
     /// further items, e.g. if a search has been completed.
     fn full(&self) -> bool;
 
+    /// Specifies a upper bound on unconditional splitting when using this consumer
+    /// Used for `flat_map`, since it would otherwise always split
     fn max_default_splitting(&self) -> Option<usize> {
         None
     }
@@ -318,22 +320,31 @@ impl LengthSplitter {
     /// The adaptive algorithm may very well split even further, but never
     /// smaller than the `min`.
     #[inline]
-    fn new(min: usize, max: usize, len: usize) -> LengthSplitter {
-        let mut splitter = LengthSplitter {
-            inner: Splitter::new(),
-            min: Ord::max(min, 1),
+    fn new(min: usize, max: usize, len: usize, max_splits: Option<usize>) -> LengthSplitter {
+        let splitter = if let Some(max) = max_splits {
+            LengthSplitter {
+                inner: Splitter::new_with_value(max),
+                min: Ord::max(min, 1),
+            }
+        } else {
+            let mut splitter = LengthSplitter {
+                inner: Splitter::new(),
+                min: Ord::max(min, 1),
+            };
+
+            // Divide the given length by the max working length to get the minimum
+            // number of splits we need to get under that max.  This rounds down,
+            // but the splitter actually gives `next_power_of_two()` pieces anyway.
+            // e.g. len 12345 / max 100 = 123 min_splits -> 128 pieces.
+            let min_splits = len / Ord::max(max, 1);
+
+            // Only update the value if it's not splitting enough already.
+            if min_splits > splitter.inner.splits {
+                splitter.inner.splits = min_splits;
+            }
+            
+            splitter
         };
-
-        // Divide the given length by the max working length to get the minimum
-        // number of splits we need to get under that max.  This rounds down,
-        // but the splitter actually gives `next_power_of_two()` pieces anyway.
-        // e.g. len 12345 / max 100 = 123 min_splits -> 128 pieces.
-        let min_splits = len / Ord::max(max, 1);
-
-        // Only update the value if it's not splitting enough already.
-        if min_splits > splitter.inner.splits {
-            splitter.inner.splits = min_splits;
-        }
 
         splitter
     }
@@ -401,7 +412,8 @@ where
     P: Producer,
     C: Consumer<P::Item>,
 {
-    let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len);
+    consumer.full();
+    let splitter = LengthSplitter::new(producer.min_len(), producer.max_len(), len, consumer.max_default_splitting());
     return helper(len, false, splitter, producer, consumer);
 
     fn helper<P, C>(
